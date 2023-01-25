@@ -1,0 +1,27 @@
+---
+title: "Task1"
+author: "Nick McManus"
+date: "2023-01-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) #always
+library(readxl)    #use to import .xlsx data
+library(here)      #easier to read in data
+```
+
+## Background
+
+Information on the study and what will be done in this task.
+
+Source: Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
+
+
+## Read in data
+
+```{r}
+data <- read_excel(here("data/sierra_amphibians.xlsx"))
+```
+
