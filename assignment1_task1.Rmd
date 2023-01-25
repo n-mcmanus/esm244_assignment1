@@ -10,18 +10,49 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) #always
 library(readxl)    #use to import .xlsx data
 library(here)      #easier to read in data
+library(lubridate) #dates
 ```
 
 ## Background
 
 Information on the study and what will be done in this task.
 
-Source: Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
+Source: Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. <https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3>
 
+## Data wrangling
 
-## Read in data
+First we'll read in the data.
 
 ```{r}
-data <- read_excel(here("data/sierra_amphibians.xlsx"))
+amphibians <- read_excel(here("data/sierra_amphibians.xlsx"))
+```
+
+Now we'll wrangle the data to isolate our species of interest, *Rana muscosa.* Specifically, we only want to keep observations for adult, subadult, and tadpole *R. muscosa* across the study area.
+
+```{r}
+ramu <- amphibians %>% 
+  ## return only R. muscosa obs
+  filter(amphibian_species == "RAMU") %>% 
+  
+  ## remove obs for frogs in eggmass life stage
+  filter(amphibian_life_stage != "EggMass") %>% 
+  
+  ## isolate year from survey_date and move column
+  mutate(year = lubridate::year(survey_date)) %>% 
+  relocate(year, .before = amphibian_location) %>% 
+
+  # determine the counts by life stage and year
+  group_by(amphibian_life_stage, year) %>% 
+  summarize(count = sum(amphibian_number, na.rm = T))
+```
+
+## Graphs
+
+Let's create our first graph.
+```{r}
+ggplot(data = ramu, aes(x = year, y = count)) +
+  geom_col() +
+  theme_minimal() +
+  facet_wrap(~amphibian_life_stage)
 ```
 
