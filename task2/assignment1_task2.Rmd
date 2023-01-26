@@ -1,0 +1,32 @@
+---
+title: "task2"
+author: "Nick McManus"
+date: "2023-01-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) #always
+```
+
+## Background
+
+Information on the study and what will be done in this task.
+
+Source: html
+
+
+## Data wrangling
+
+First we'll read in the data.
+
+```{r}
+seawater <- read_csv("data/calcofi_seawater_samples.csv")
+```
+
+
+
+
+## Model building
+
