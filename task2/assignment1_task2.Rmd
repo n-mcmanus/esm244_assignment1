@@ -7,26 +7,139 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse) #always
+library(tidyverse)   #always
+library(AICcmodavg)  #for AIC and BIC comparisons
 ```
 
 ## Background
 
-Information on the study and what will be done in this task.
+In this task, we will create and compare two linear regression models for predicting the oxygen saturation of CA coastal seawater. Several physical and chemical variables will be used to predict oxygen saturation. Metrics such as AIC and cross validation will then be used to select the model with the best fit.  
 
-Source: html
+Source: CalCOFI data are available for use without restriction. Data downloaded from https://calcofi.org/ccdata.html.  Accessed 1/10/2022.
 
 
-## Data wrangling
+## Read in data
 
-First we'll read in the data.
+First we'll read in and clean up the data.
 
 ```{r}
-seawater <- read_csv("data/calcofi_seawater_samples.csv")
+seawater <- read_csv("data/calcofi_seawater_samples.csv") %>% 
+  #clean up variable names for easier recall
+  rename(oxy = o2sat,
+         temp = t_deg_c,
+         sal = salinity,
+         depth = depth_m,
+         chlor = chlor_a,
+         phos = po4u_m,
+         nitrate = no2u_m)
+```
+
+## Models
+
+### Create the models
+
+Now let's create two linear regression models. The first will predict oxygen saturation based on water temperature (C), salinity, and phosphate concentration (micro Moles per liter). The second model will define oxygen saturation as a function of water temperature, salinity, phosphate concentration, and depth (meters).
+
+```{r}
+### create model 1 -------------------------------
+f1 <- oxy ~ temp + sal + phos
+mdl1 <- lm(f1, data = seawater)
+
+#make tidy summary table of our first model
+mdl1_tidy <- broom::tidy(mdl1)
+mdl1_tidy
+
+### create model 2 ------------------------------
+f2 <- oxy ~ temp + sal + phos + depth
+mdl2 <- lm(f2, data = seawater)
+
+#tidy mdl2 summary table and return
+mdl2_tidy <- broom::tidy(mdl2)
+mdl2_tidy
+```
+
+
+### Compare the models
+
+Now we will use three methods to determine which model offers the greatest utility at predicting oxygen saturation in CA seawater. 
+- AICc (Corrected Akaike information criterion)
+- BIC (Bayesian information criterion)
+- 10-fold cross validation
+
+```{r}
+### first let's compare the AICc and BIC values
+
+# AICc
+aic <- aictab(list(mdl1, mdl2))
+aic
+# BIC
+bic <- bictab(list(mdl1, mdl2))
+bic
+```
+Model 1 has an AICc value of `r round(aic$AICc[2], 2)`, while model 2 has an AICc of `r round(aic$AICc[1], 2)`. This difference of `r round(aic$Delta_AICc[2], 2)` indicates positive evidence that Model 2 better predicts oxygen saturation levels in seawater. The BIC values of model 1 and 2, however, are very similar (difference of `r round(bic$Delta_BIC[2], 2)`), suggesting a minimal difference in model efficacy. BIC places a larger penalty than AICc on the number of parameters used in a model; in other words, BIC rewards parsimony over goodness of fit. This difference in BIC values indicates that the increased likelihood Model 2 gains from considering water depth may not be worth the additional parameter. 
+
+With these mixed results, let's perform a 10-fold cross validation to more confidently choose a model. We'll compare the root mean square error (RMSE) of the residuals from both models to evaluate their performance. 
+```{r}
+### prep for cross validation --------------------------------------
+
+#set number of folds to 10 
+n_folds <- 10
+folds_vec <- rep(1:n_folds, length.out = nrow(seawater))
+
+#new df where we assign fold group numbers to each obs
+seawater_kfold <- seawater %>% 
+  mutate(folds = sample(folds_vec), size = n(), replace = FALSE)
+
+#create function to calculate RMSE
+calc_rmse <- function(x, y) {
+  rmse <- (x - y)^2 %>% 
+    mean() %>% 
+    sqrt()
+  return(rmse)
+}
+
+#empty df for storing results
+results_df <- data.frame()
+
+
+### create for loop ----------------------------------------
+for(i in 1:n_folds) {
+  #create test group
+  test_df <- seawater_kfold %>%
+    filter(folds == i)
+  #create training group
+  train_df <- seawater_kfold %>%
+    filter(folds != i)
+  
+  #two models that use train_df
+  lm1 <- lm(f1, data = train_df)
+  lm2 <- lm(f2, data = train_df)
+  
+  #how well does test_df predict oxSat using mdls
+  pred_df <- test_df %>% 
+    mutate(mdl1 = predict(lm1, test_df),
+           mdl2 = predict(lm2, test_df))
+  
+  #find the rmse based on results in pred_df
+  rmse <- pred_df %>% 
+    summarize(rmse_mdl1 = calc_rmse(mdl1, oxy),
+              rmse_mdl2 = calc_rmse(mdl2, oxy),
+              test_gp = i)
+  
+  #now put results into empty df
+  results_df <- bind_rows(results_df, rmse)
+}
+
+#return results
+results_df
+
+### Now find the average RMSE based on all 10-folds
+results_df %>% 
+  summarize(mean_rmse_mdl1 = mean(rmse_mdl1),
+            mean_rmse_mdl2 = mean(rmse_mdl2))
 ```
 
 
 
-
-## Model building
+## Model Selection
 
