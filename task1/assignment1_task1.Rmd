@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) #always
 library(readxl)    #use to import .xlsx data
 library(lubridate) #dates
+library(calecopal) #color themes
 ```
 
 ## Background
@@ -63,10 +64,22 @@ ramu_counts_lake <- ramu %>%
 
 Let's create our first graph, where we visualize the total number of R. muscosa counts each year across all water bodies by life stage.
 ```{r}
+#colors <- cal_palette(name = "bigsur", n = 3, type = "continuous")
+
 ggplot(data = ramu_counts_year, aes(x = year, y = count)) +
-  geom_col() +
-  theme_minimal() +
-  facet_wrap(~amphibian_life_stage)
+  #define geometry
+  geom_col(position = 'dodge', aes(fill = amphibian_life_stage)) +
+  #customize bar colors
+  scale_fill_manual(values = cal_palette("lake")) +
+  #set years on x axis
+  scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) +
+  # add values to columns
+  #geom_label(position = 'dodge', aes(label = count), size = 3.3) +
+  #set labels
+  labs(y = "Number of observed individuals",
+       fill = "Life Stage") +
+  #set theme
+  theme_minimal()
 ```
 
 Now let's make our second graph, which vizualizes the total number of adult and subadult R. muscosa observed in the five lakes with greatest observed counts. 
