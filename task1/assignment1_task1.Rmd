@@ -1,34 +1,46 @@
 ---
-title: "Task1"
+title: "Task 1: Vizualizing Amphibian Counts in the Sierra Nevadas"
 author: "Nick McManus"
 date: "2023-01-25"
-output: html_document
+output: 
+ html_document: 
+    toc: yes
+    toc_float: yes
+    theme: cerulean
+    code_folding: show
+    smooth_scroll: yes
+    collapsed: yes
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) #always
 library(readxl)    #use to import .xlsx data
 library(lubridate) #dates
 library(calecopal) #color themes
+#PICK ONE OF THESE :
+library(patchwork)
+library(cowplot)
 ```
 
 ## Background
 
-Information on the study and what will be done in this task.
+The amphibian data visualized in this task comes from the Sierra Lakes Inventory Project. This project ran from 1995-2002 and surveyed aquatic communities (amphibians, reptiles, fish, macroinvertebrates, and zooplankton) in over 8,000 water bodies in the southern Sierra Nevada. Here, we will be exploring the abundance of just one species: the mountain yellow-legged frog (*Rana muscosa*). First we will determine the number of *R. muscosa* observed by life stage and year. Then, we will determine which lakes contained the greatest number of observations throughout the project. These will both be presented in a final compound figure.
+
 
 Source: Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. <https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3>
+
+
 
 ## Data wrangling
 
 First we'll read in the data.
-
 ```{r}
 amphibians <- read_excel("data/sierra_amphibians.xlsx")
 ```
 
-Now we'll wrangle the data to isolate our species of interest, *Rana muscosa.* Specifically, we only want to keep observations for adult, subadult, and tadpole *R. muscosa* across the study area. Then, we'll group and summarize the dataset to create our two graphs. 
 
+Now we'll wrangle the data to isolate our species of interest, *Rana muscosa*. Specifically, we only want to keep observations for adult, subadult, and tadpole *R. muscosa* across the study area. Then, we'll group and summarize the dataset by life stage and survey year to create the first component of our figure. 
 ```{r}
 ramu <- amphibians %>% 
   # return only R. muscosa obs
@@ -42,13 +54,16 @@ ramu <- amphibians %>%
   select(!c(survey_date, amphibian_species, amphibian_state, amphibian_voucher))
 
 
-### for 1st graph, we want to determine counts by life stage and year
+### 1st graph: determine counts by life stage and year
 ramu_counts_year <- ramu %>% 
   group_by(amphibian_life_stage, year) %>% 
   summarize(count = sum(amphibian_number, na.rm = T))
+```
 
 
-### for 2nd graph, determine counts by lake and return top 5
+For the second component of our figure, we want to only focus on observations of adult and subadult *R. muscosa*. After grouping the data by location, we can determine which five lakes contained the greatest number of observations.
+```{r}
+### 2nd graph: determine counts by lake and return top 5
 ramu_counts_lake <- ramu %>% 
   # remove obs for tadpoles
   filter(amphibian_life_stage != "Tadpole") %>% 
@@ -56,37 +71,71 @@ ramu_counts_lake <- ramu %>%
   group_by(lake_id) %>% 
   summarize(count = sum(amphibian_number, na.rm = T)) %>% 
   # return only top 5
-  slice_max(order_by = count, n = 5) 
-  
+  slice_max(order_by = count, n = 5)  %>% 
+  # add "Lake" to id name, then reclass to factor
+  mutate(lake_id = paste0("Lake ", lake_id)) %>% 
+  mutate(lake_id = as.factor(lake_id))
 ```
 
-## Graphs
 
-Let's create our first graph, where we visualize the total number of R. muscosa counts each year across all water bodies by life stage.
+## Data visualization
+
+Let's create the first component of our compound figure, where we visualize the total number of *R. muscosa* counts each year across all water bodies by life stage.
 ```{r}
 #colors <- cal_palette(name = "bigsur", n = 3, type = "continuous")
 
-ggplot(data = ramu_counts_year, aes(x = year, y = count)) +
-  #define geometry
-  geom_col(position = 'dodge', aes(fill = amphibian_life_stage)) +
-  #customize bar colors
+years_fig <- ggplot(data = ramu_counts_year, aes(x = year, y = count)) +
+  # set geometry
+  geom_col(aes(fill = amphibian_life_stage)) +
+  # customize bar colors
   scale_fill_manual(values = cal_palette("lake")) +
-  #set years on x axis
+  # set years on x axis
   scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) +
   # add values to columns
   #geom_label(position = 'dodge', aes(label = count), size = 3.3) +
-  #set labels
-  labs(y = "Number of observed individuals",
+  # set labels
+  labs(y = "Count\n",
+       x = "\nYear",
        fill = "Life Stage") +
-  #set theme
-  theme_minimal()
+  # set theme
+  theme_minimal() +
+  
+  theme(
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    legend.position = c(0.1, 0.8),
+    legend.title = element_text(face = 'bold')) 
+  
+
+years_fig
 ```
 
-Now let's make our second graph, which vizualizes the total number of adult and subadult R. muscosa observed in the five lakes with greatest observed counts. 
+Now let's make our second component, which visualizes the total number of adult and subadult *R. muscosa* observed in the five lakes with greatest observed counts. 
 ```{r}
-ggplot(data = ramu_counts_lake, aes(x = fct_reorder(lake_id, count), 
-                                    y = count)) +
-  geom_col()+
+ggplot(data = ramu_counts_lake, 
+                    aes(x = reorder(lake_id, count), 
+                        y = count)) +
+  geom_col(width = 0.8, fill = "cadetblue3", color = "cadetblue")+
+  labs(x = "Lake ID",
+       y = "Total count") +
+  # add values to columns
+  geom_text(aes(label = count), nudge_y = 70, size = 3) +
+  # set theme
   theme_minimal()
+
+lakes_fig
 ```
+
+Now we'll combine the graphs to form our finalized figure.
+```{r}
+plot_grid(years_fig, lakes_fig, 
+          labels = c('A', 'B'), 
+          label_size = 12)
+
+#add figure label
+```
+
+## Results
 
