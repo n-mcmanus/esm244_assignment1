@@ -1,0 +1,159 @@
+---
+title: "Task 1: Visualizing Amphibian Counts in the Sierra Nevadas"
+author: "Nick McManus"
+date: "2023-01-25"
+output: 
+ html_document: 
+    toc: yes
+    toc_float: yes
+    theme: cerulean
+    code_folding: show
+    smooth_scroll: yes
+    collapsed: yes
+---
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(tidyverse) #always
+library(readxl)    #use to import .xlsx data
+library(lubridate) #dates
+library(calecopal) #color themes
+library(cowplot)   #merging graphs
+```
+
+## Background
+
+The amphibian data visualized in this task comes from the Sierra Lakes Inventory Project (SLIP). This project ran from 1995-2002 and surveyed aquatic communities --- including amphibians, reptiles, fish, macroinvertebrates, and zooplankton --- in over 8,000 water bodies in the southern Sierra Nevada. In this task, we will explore the abundance of just one species: the mountain yellow-legged frog (*Rana muscosa*). First, we determine the number of *R. muscosa* observed in the Sierras by life stage and year. Next, we determine which lakes contained the greatest number of observations throughout the project. These data will are finally presented in a composite figure.
+
+**Source:** Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. <https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3>
+
+<br>
+
+## Data wrangling
+
+First we'll read in the data:
+
+```{r}
+amphibians <- read_excel("data/sierra_amphibians.xlsx")
+```
+
+Now we'll wrangle the data to isolate our species of interest, *Rana muscosa*. Specifically, we only want to keep observations for adult, subadult, and tadpole *R. muscosa* across the study area. Then, we group and summarize the dataset by life stage and survey year to create the first component of our figure.
+
+```{r}
+ramu <- amphibians %>% 
+  # return only R. muscosa obs
+  filter(amphibian_species == "RAMU") %>% 
+  # remove obs for frogs in eggmass life stage
+  filter(amphibian_life_stage != "EggMass") %>% 
+  # isolate year from survey_date and move column
+  mutate(year = lubridate::year(survey_date)) %>% 
+  relocate(year, .before = amphibian_location) %>% 
+  # remove unneeded variables
+  select(!c(survey_date, amphibian_species, amphibian_state, amphibian_voucher))
+
+
+### 1st graph: determine counts by life stage and year
+ramu_counts_year <- ramu %>% 
+  group_by(amphibian_life_stage, year) %>% 
+  summarize(count = sum(amphibian_number, na.rm = T))
+```
+
+For the second component of our figure, we remove tadpole data to focus on observations of adult and sub-adult *R. muscosa*. After grouping the data by location, we can determine which five lakes contained the greatest number of observations during the length of SLIP.
+
+```{r}
+### 2nd graph: determine counts by lake and return top 5
+ramu_counts_lake <- ramu %>% 
+  # remove obs for tadpoles
+  filter(amphibian_life_stage != "Tadpole") %>% 
+  # combine counts for adult + subadult by lake_id
+  group_by(lake_id) %>% 
+  summarize(count = sum(amphibian_number, na.rm = T)) %>% 
+  # return only top 5
+  slice_max(order_by = count, n = 5)  %>% 
+  # add "Lake" to id name, then reclass to factor
+  mutate(lake_id = paste0("Lake ", lake_id)) %>% 
+  mutate(lake_id = as.factor(lake_id))
+```
+
+<br>
+
+## Data visualization
+
+Let's create the first component of our composite figure, where we visualize the total number of *R. muscosa* counts each year across all water bodies by life stage.
+
+```{r}
+years_fig <- ggplot(data = ramu_counts_year, aes(x = year, y = count)) +
+  # set geometry
+  geom_col(aes(fill = amphibian_life_stage)) +
+  # customize bar colors
+  scale_fill_manual(values = cal_palette("lake")) +
+  # set years on axes
+  scale_x_continuous(breaks = seq(from = 1995, to = 2002, by = 1)) +
+  scale_y_continuous(breaks = seq(from = 0, to = 200000, by = 50000),
+                     expand = c(0, 0), limits = c(0, 190000)) +
+  # set labels
+  labs(x = "Year",
+       y = "Count",
+       fill = "Life Stage") +
+  # set theme
+  theme_bw() +
+  theme(
+    # customize axis labels
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 8),
+    axis.ticks = element_blank(),
+    # remove vertical lines
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # set custom position for legend
+    legend.position = c(0.2, 0.85),
+    legend.title = element_text(face = 'bold', size = 10)) 
+```
+
+Now let's make our second component, which visualizes the total number of adult and sub-adult *R. muscosa* observed in the five lakes with greatest observed counts.
+
+```{r}
+lakes_fig <- ggplot(data = ramu_counts_lake, 
+                    aes(x = reorder(lake_id, count), 
+                        y = count)) +
+  # set geometry and bar color
+  geom_col(width = 0.8, fill = '#7AC9B7', color = '#6CA184')+
+  # axis label
+  labs(x = "Lake ID") +
+  # customize y axis ticks
+  scale_y_continuous(breaks = seq(from = 0, to = 3000, by = 500),
+                     expand = c(0, 0), limits = c(0,2750)) +
+  # add values to columns
+  geom_text(aes(label = count), nudge_y = 70, size = 2.5) +
+  # set theme
+  theme_bw() +
+  theme(
+    # customize axis labels
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_blank(),
+    # make axis tick labels smaller
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 8),
+    axis.ticks = element_blank(),
+    # remove v lines
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # remove minor h lines
+    panel.grid.minor.y = element_blank()) 
+```
+
+Now we'll combine the graphs to form our finalized figure.
+
+```{r}
+plot_grid(years_fig, lakes_fig, 
+          align = 'h',
+          greedy = TRUE,
+          labels = c('A', 'B'), 
+          label_size = 12,
+          hjust = -0.5,
+          vjust = 1.5) 
+```
+<br>
+**Figure 1.** The number of *R. muscosa* observations between 1995-2002 in the southern Sierra Nevadas. Figure 1A (left) displays counts by year and life stage. No observations for *R. muscosa* were recorded for the years 1998-1999. Figure 1B (right) displays the five lakes with the greatest number of combined adult and sub-adult *R. muscosa* observations across all years.
