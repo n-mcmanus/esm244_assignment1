@@ -7,10 +7,25 @@ output:
     toc: yes
     toc_float: yes
     theme: cerulean
-    code_folding: show
     smooth_scroll: yes
     collapsed: yes
 ---
+
+<br>
+
+## Introduction
+
+------------------------------------------------------------------------
+
+### Overview
+
+In this task, we create and compare linear regression models for predicting the oxygen saturation of CA coastal seawater. These models use several physical and chemical parameters from water sample data provided by the California Cooperative Oceanic Fisheries Investigations (CalCOFI). Metrics such as AICc, BIC, and cross validation are then used to select the model with the best fit.
+
+**Source:** CalCOFI data are available for use without restriction. Data downloaded from <https://calcofi.org/ccdata.html>. Accessed 1/10/2022.
+
+
+### Read in data
+First load in the appropriate packages for this analysis. 
 
 ```{r setup, include=TRUE, warning = FALSE, message = FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
@@ -20,24 +35,7 @@ library(kableExtra)   #nice tables
 library(equatiomatic) #equations
 ```
 
-<br>
-
-## Background
-
-------------------------------------------------------------------------
-
-In this task, we create and compare linear regression models for predicting the oxygen saturation of CA coastal seawater. These models use several physical and chemical parameters from water sample data provided by the California Cooperative Oceanic Fisheries Investigations (CalCOFI). Metrics such as AICc, BIC, and cross validation are then used to select the model with the best fit.
-
-**Source:** CalCOFI data are available for use without restriction. Data downloaded from <https://calcofi.org/ccdata.html>. Accessed 1/10/2022.
-
-<br>
-
-## Read in data
-
-------------------------------------------------------------------------
-
-First we'll read in and clean up the data.
-
+Then read in and clean up the CalCOFI data.
 ```{r}
 seawater <- read_csv("data/calcofi_seawater_samples.csv") %>% 
   #clean up variable names for easier recall
@@ -50,30 +48,26 @@ seawater <- read_csv("data/calcofi_seawater_samples.csv") %>%
          nitrate = no2u_m)
 ```
 
-<br>
+<br><br>
 
 ## Linear Regression Models
 
 ------------------------------------------------------------------------
 
-<br>
-
 ### Create the models
 
-Now let's create two linear regression models. The first will predict oxygen saturation (% sat) based on water temperature ($^\circ$C), salinity (practical salinity scale), and phosphate concentration ($\mu mol/L$). The second model will define oxygen saturation as a function of these three parameters plus depth (m).
+Now let's create two linear regression models. The first will predict oxygen saturation (% sat) based on water temperature ($^\circ$C), salinity (practical salinity scale), and phosphate concentration (<font size="1">$\mu mol/L$ </font>). The second model will define oxygen saturation as a function of these three parameters plus depth (m).
 
 ```{r}
 ### create model 1
 f1 <- oxy ~ temp + sal + phos
 mdl1 <- lm(f1, data = seawater)
 mdl1_tidy <- broom::tidy(mdl1)
-mdl1_tidy
 
 ### create model 2
 f2 <- oxy ~ temp + sal + phos + depth
 mdl2 <- lm(f2, data = seawater)
 mdl2_tidy <- broom::tidy(mdl2)
-mdl2_tidy
 ```
 
 <br>
@@ -99,8 +93,7 @@ aic_table <- aic %>%
                 html_font = "Cambria",
                 position = "left") %>% 
   remove_column(c(1,6,7,9))
-# return table
-aic_table
+
 
 ### BIC  ------------------------------------------------------------
 bic <- bictab(list(mdl1, mdl2))
@@ -112,11 +105,14 @@ bic_table <- bic %>%
                 html_font = "Cambria",
                 position = "left") %>% 
   remove_column(c(1,6,7,9))
-# return table
+
+
+# return tables
+aic_table
 bic_table
 ```
 
-As shown in Table 1, Model 1 has an AICc value of `r round(aic$AICc[2], 2)`, while model 2 has an AICc of `r round(aic$AICc[1], 2)`. This difference of `r round(aic$Delta_AICc[2], 2)` indicates positive evidence that Model 2 better predicts oxygen saturation levels in seawater. The BIC values of model 1 and 2, however, are very similar (difference of `r round(bic$Delta_BIC[2], 2)`), suggesting a minimal difference in model efficacy. BIC places a larger penalty than AICc on the number of parameters (K) used in a model; in other words, BIC rewards parsimony over goodness of fit. This difference in BIC values indicates that the increased log likelihood (LL) Model 2 gains from considering water depth may not be worth the additional parameter.
+As shown in Table 1, Model 1 has an AICc value of `r round(aic$AICc[2], 2)`, while Model 2 has an AICc of `r round(aic$AICc[1], 2)`. This difference of `r round(aic$Delta_AICc[2], 2)` indicates positive evidence that Model 2 better predicts oxygen saturation levels in seawater. The BIC values of Model 1 and 2, however, are very similar (difference of `r round(bic$Delta_BIC[2], 2)`), suggesting a minimal difference in model efficacy. BIC places a larger penalty than AICc on the number of parameters (K) used in a model; in other words, BIC rewards parsimony over goodness of fit. This difference in BIC values indicates that the increased log likelihood (LL) Model 2 gains from considering water depth may not be worth the additional parameter.
 
 With these mixed results, let's perform a 10-fold cross validation to more confidently choose a model. We'll compare the root mean square error (RMSE) of the residuals from both models to evaluate their performance.
 
@@ -179,9 +175,25 @@ results_sum <- results_df %>%
             sd_rmse_mdl1 = round(sd(rmse_mdl1),3),
             sd_rmse_mdl2 = round(sd(rmse_mdl2),3))
 
+## can't remember how to use pivot_longer
+## so just brute-forcing this into a nice table
+results_tidy <- data.frame("Model" = c("Model1", "Model2"),
+                           "mean_rmse" = c(results_sum$mean_rmse_mdl1,
+                                           results_sum$mean_rmse_mdl2),
+                           "sd_rmse" = c(results_sum$sd_rmse_mdl1,
+                                         results_sum$sd_rmse_mdl2)) 
+ 
+
+results_tidy %>% 
+  kable(
+        caption = "**Table 3.** Mean and standard deviation RMSE values.") %>% 
+  kable_styling(full_width = F,
+                bootstrap_options = "hover",
+                html_font = "Cambria",
+                position = "left")
 ```
 
-The average RMSE across all folds was `r results_sum$mean_rmse_mdl1` $\pm$ `r results_sum$sd_rmse_mdl1` and `r results_sum$mean_rmse_mdl2` $\pm$ `r results_sum$sd_rmse_mdl2` for Model 1 and Model 2, respectively (mean $\pm$ 1 standard deviation). With an average RMSE `r results_sum$mean_rmse_mdl1-results_sum$mean_rmse_mdl2` smaller, Model 2 appears to be slightly better for evaluating the percent oxygen saturation. However, due to the weak evidence provided by the BIC and RMSE comparison, there may yet be better models for predicting saturated oxygen levels in seawater.
+The average RMSE across all folds was `r results_sum$mean_rmse_mdl1` <font size="1">$\pm$</font> `r results_sum$sd_rmse_mdl1` and `r results_sum$mean_rmse_mdl2` <font size="1">$\pm$</font> `r results_sum$sd_rmse_mdl2` for Model 1 and Model 2, respectively (mean <font size="1">$\pm$</font> 1 standard deviation). With an average RMSE `r results_sum$mean_rmse_mdl1-results_sum$mean_rmse_mdl2` smaller, Model 2 appears to be slightly better for evaluating the percent oxygen saturation. However, due to the weak evidence provided by the BIC and RMSE comparison, there may yet be better models for predicting saturated oxygen levels in seawater.
 
 <br>
 
@@ -189,14 +201,14 @@ The average RMSE across all folds was `r results_sum$mean_rmse_mdl1` $\pm$ `r re
 
 ------------------------------------------------------------------------
 
-Let's explore a couple more models using the same evaluation criteria above. Models 1 and 2 both include phosphate concentration, which was the most significant parameter in the models having a p-value of `r mdl1_tidy$p.value[4]` and `r mdl2_tidy$p.value[4]` in Model 1 and 2, respectively. In seawater, phosphate levels can affect oxygen saturation by stimulating algae growth; when these algae die, oxygen is used in the process of decomposition (Watson et al., 2017). Similar to phosphorous, nitrogen is also a limiting compound, and nitrate concentrations can have the same affect on algal blooms (Voss et al., 2013). In a third model, we explore how nitrate concentrations ($\mu mol/L$), in addition to temperature, salinity, and phosphate, affect oxygen saturation.
+Let's explore a couple more models using the same evaluation criteria above. Models 1 and 2 both include phosphate concentration, which was the most significant parameter in the models having a p-value of `r mdl1_tidy$p.value[4]` and `r mdl2_tidy$p.value[4]` in Model 1 and 2, respectively. In seawater, phosphate levels can affect oxygen saturation by stimulating algae growth; when these algae die, oxygen is used in the process of decomposition (Watson et al., 2017). Similar to phosphorous, nitrogen is also a limiting compound, and nitrate concentrations can have the same affect on algal blooms (Voss et al., 2013). In a third model, we explore how nitrate concentrations (<font size="1">$\mu mol/L$ </font>) --- in addition to temperature, salinity, and phosphate --- affect oxygen saturation.
 
-Chlorophyll-a levels increase during algal blooms, as the phytoplankton utilize chlorophyll-a to photosynthesize. As previously mentioned, these algal blooms are spurred by increased concentrations of phosphates and nitrates and can lead to decreased oxygen saturation. Due to the relationship between chlorophyll-a and phosphate/nitrate, the addition of chlorophyll-a may lead to over-fitting. We'll test how this addition affects accuracy in a fourth model.
+Chlorophyll-a levels increase during algal blooms, as the phytoplankton utilize chlorophyll-a to photosynthesize. As previously mentioned, these algal blooms are spurred by increased concentrations of phosphates and nitrates and can lead to decreased oxygen saturation. Due to the relationship between chlorophyll-a and phosphate/nitrate, the addition of chlorophyll-a may lead to over-fitting. We'll test how this addition affects accuracy in a fourth model that utilizes temperature, salinity, phosphate, nitrate, and chlorophyll-a.
 
-Finally, our results from the first two models indicate that temperature and salinity aren't very significant indicators of oxygen saturation. Let's create a fifth model that eschews temperature and salinity for a more parsimonious model comprised of only phosphate, nitrate, and cholorphyll-a.
+Finally, our results from the first two models indicate that temperature (p-values of `r round(mdl1_tidy$p.value[2],3)` and `r round(mdl2_tidy$p.value[2],3)` in Models 1 and 2, respectively) and salinity (p-values of `r round(mdl1_tidy$p.value[3],3)` and `r round(mdl2_tidy$p.value[3],3)` in Models 1 and 2, respectively) aren't very significant indicators of oxygen saturation. Let's create a fifth model that eschews temperature and salinity for a more parsimonious model comprised of only phosphate, nitrate, and cholorphyll-a. 
+
 ```{r}
 ### create three more models!
-
 f3 <- oxy ~ temp + sal + phos + nitrate
 mdl3 <- lm(f3, data = seawater)
 
@@ -214,30 +226,30 @@ Let's compare how these three new models compare against our original two. First
 aic5 <- aictab(list(mdl1, mdl2, mdl3, mdl4, mdl5)) 
 # make table
 aic_table5 <- aic5 %>% 
-  kable(caption = "**Table 3.** AICc values for models 1 through 5.") %>% 
+  kable(caption = "**Table 4.** AICc values for Models 1 through 5.") %>% 
   kable_styling(full_width = FALSE,
                 bootstrap_options = "hover",
                 html_font = "Cambria",
                 position = "left") %>% 
   remove_column(c(1,6,7,9))
-# return table
-aic_table5
 
 ### BIC --------------------------------------------------------------
 bic5 <- bictab(list(mdl1, mdl2, mdl3, mdl4, mdl5))
 # make table
 bic_table5 <- bic5 %>% 
-  kable(caption = "**Table 4.** BIC values for Models 1 and 2.") %>% 
+  kable(caption = "**Table 5.** BIC values for Models 1 and 2.") %>% 
   kable_styling(full_width = FALSE,
                 bootstrap_options = "hover",
                 html_font = "Cambria",
                 position = "left") %>% 
   remove_column(c(1,6,7,9))
-# return table
+
+# return tables
+aic_table5
 bic_table5
 ```
 
-Table 3 displays how including nitrate and chlorophyll-a as parameters in Models 4 and 5 increases the log likelihood and decreases the AICc. Although Model 4 has a slightly higher log likelihood than Model 5, the AICc is `r round(aic5$Delta_AICc[2], 2)` less than Model 4 due to fewer parameters. The BIC values in Table 5 indicate even greater support for Model 5, which is `r round(bic5$Delta_BIC[2], 2)` less than Model 4. 
+Table 4 displays how including nitrate and chlorophyll-a as parameters in Models 4 and 5 favorably increases the log likelihood and decreases the AICc. Although Model 4 has a slightly higher log likelihood than Model 5, the AICc of Model 5 is `r round(aic5$Delta_AICc[2], 2)` less than Model 4 due to containing two fewer parameters. The BIC values in Table 5 indicate even greater support for Model 5, which is `r round(bic5$Delta_BIC[2], 2)` less than Model 4.
 
 Finally, we'll perform a 10-fold cross validation for Models 3-5 and compare average RMSE against Models 1 and 2.
 
@@ -287,8 +299,6 @@ for(i in 1:n_folds) {
   results_5mdl_df <- bind_rows(results_5mdl_df, rmse)
 }
 
-#return results
-results_5mdl_df
 
 ### Now find the average RMSE based on all 10-folds ----------------
 results_5mdl_sum <- results_5mdl_df %>% 
@@ -302,23 +312,47 @@ results_5mdl_sum <- results_5mdl_df %>%
             sd_rmse_mdl3 = round(sd(rmse_mdl3),3),
             sd_rmse_mdl4 = round(sd(rmse_mdl4),3),
             sd_rmse_mdl5 = round(sd(rmse_mdl5),3))
-results_5mdl_sum
 
 
-#outputs in nice table
+### again working harder not smarter -------------------------------
+
+results_5mdl_tidy <- data.frame("mean_rmse" = c(results_5mdl_sum$mean_rmse_mdl1, 
+                                                results_5mdl_sum$mean_rmse_mdl2,
+                                                results_5mdl_sum$mean_rmse_mdl3,
+                                                results_5mdl_sum$mean_rmse_mdl4,
+                                                results_5mdl_sum$mean_rmse_mdl5),
+                                "sd_rmse" = c(results_5mdl_sum$sd_rmse_mdl1,
+                                              results_5mdl_sum$sd_rmse_mdl2,
+                                              results_5mdl_sum$sd_rmse_mdl3,
+                                              results_5mdl_sum$sd_rmse_mdl4,
+                                              results_5mdl_sum$sd_rmse_mdl5))
+row.names(results_5mdl_tidy) <-c("Model1", "Model2", "Model3", "Model4", "Model5")
+
+results_5mdl_tidy %>% 
+  kable(caption = "**Table 6.** Mean and standard deviation RMSE values for Models 1-5.") %>% 
+  kable_styling(full_width = FALSE,
+                bootstrap_options = "hover",
+                html_font = "Cambria",
+                position = "left")
 ```
-Model 5 has the second highest average RMSE of `r`. (mean plusminus sd). With a difference of only (X) and strong support from BIC and AICc scores, Model 5 is the winner!
 
+<br><br>
 
 ## Model Selection
 
-*insert Model 5 equation*
+***
 
-Log likelihood is greatest in Model 4, yet Model 5 has highest AICc ( ) and BIC ( ) values due to it's simplicity.
+Based on the AICc and BIC values (Tables 5 and 6), Model 5 appears to be best model for predicting oxygen saturation in California seawater. However, Model 5 has the second highest average RMSE of `r results_5mdl_sum$mean_rmse_mdl5` <font size="1">$\pm$</font> `r results_5mdl_sum$sd_rmse_mdl5` (mean <font size="1">$\pm$</font> 1 standard deviation; Table 6). The difference between Model 5 and the lowest mean RMSE score (for Model 3) is only `r results_5mdl_sum$mean_rmse_mdl5 - results_5mdl_sum$mean_rmse_mdl3`. Additionally, Model 5 has the smallest standard deviation of RMSE values. This in addition to the AICc and BIC values indicate Model 5 is consistently the best model for oxygen saturation. 
 
-Something about cross-fold.
+Our final model:
+`r equatiomatic::extract_eq(mdl5, wrap = FALSE, use_coefs = TRUE)`
 
-## Sources cited
 
--   Watson AJ, Lenton TM, Mills BJW. Ocean deoxygenation, the global phosphorus cycle and the possibility of human-caused large-scale ocean anoxia. Philos Trans A Math Phys Eng Sci. 2017 Sep 13;375(2102):20160318. doi:[10.1098/rsta.2016.0318](https://doi.org/10.1098%2Frsta.2016.0318)
--   Voss M, Bange HW, Dippner JW, Middelburg JJ, Montoya JP, Ward B. The marine nitrogen cycle: recent discoveries, uncertainties and the potential relevance of climate change. Philos Trans R Soc Lond B Biol Sci. 2013 May 27;368(1621):20130121. doi: [10.1098/rstb.2013.0121](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3682741/)
+<br><br>
+
+## Sources Cited
+
+***
+
+-   Watson AJ, Lenton TM, Mills BJW. Ocean deoxygenation, the global phosphorus cycle and the possibility of human-caused large-scale ocean anoxia. Philos Trans A Math Phys Eng Sci. 2017 Sep 13;375(2102):20160318.doi:[10.1098/rsta.2016.0318
+-   Voss M, Bange HW, Dippner JW, Middelburg JJ, Montoya JP, Ward B. The marine nitrogen cycle: recent discoveries, uncertainties and the potential relevance of climate change. Philos Trans R Soc Lond B Biol Sci. 2013 May 27;368(1621):20130121. doi:10.1098/rstb.2013.0121

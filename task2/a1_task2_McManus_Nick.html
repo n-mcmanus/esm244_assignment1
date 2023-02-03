@@ -1283,83 +1283,6 @@ window.buildTabsets = function(tocID) {
 };
 
 </script>
-<script>
-window.initializeCodeFolding = function(show) {
-
-  // handlers for show-all and hide all
-  $("#rmd-show-all-code").click(function() {
-    $('div.r-code-collapse').each(function() {
-      $(this).collapse('show');
-    });
-  });
-  $("#rmd-hide-all-code").click(function() {
-    $('div.r-code-collapse').each(function() {
-      $(this).collapse('hide');
-    });
-  });
-
-  // index for unique code element ids
-  var currentIndex = 1;
-
-  // select all R code blocks
-  var rCodeBlocks = $('pre.r, pre.python, pre.bash, pre.sql, pre.cpp, pre.stan, pre.julia, pre.foldable');
-  rCodeBlocks.each(function() {
-    // skip if the block has fold-none class
-    if ($(this).hasClass('fold-none')) return;
-
-    // create a collapsable div to wrap the code in
-    var div = $('<div class="collapse r-code-collapse"></div>');
-    var showThis = (show || $(this).hasClass('fold-show')) && !$(this).hasClass('fold-hide');
-    var id = 'rcode-643E0F36' + currentIndex++;
-    div.attr('id', id);
-    $(this).before(div);
-    $(this).detach().appendTo(div);
-
-    // add a show code button right above
-    var showCodeText = $('<span>' + (showThis ? 'Hide' : 'Code') + '</span>');
-    var showCodeButton = $('<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm code-folding-btn pull-right float-right"></button>');
-    showCodeButton.append(showCodeText);
-    showCodeButton
-        .attr('data-toggle', 'collapse')
-        .attr('data-bs-toggle', 'collapse') // BS5
-        .attr('data-target', '#' + id)
-        .attr('data-bs-target', '#' + id)   // BS5
-        .attr('aria-expanded', showThis)
-        .attr('aria-controls', id);
-
-    var buttonRow = $('<div class="row"></div>');
-    var buttonCol = $('<div class="col-md-12"></div>');
-
-    buttonCol.append(showCodeButton);
-    buttonRow.append(buttonCol);
-
-    div.before(buttonRow);
-
-    // show the div if necessary
-    if (showThis) div.collapse('show');
-
-    // update state of button on show/hide
-    //   * Change text
-    //   * add a class for intermediate states styling
-    div.on('hide.bs.collapse', function () {
-      showCodeText.text('Code');
-      showCodeButton.addClass('btn-collapsing');
-    });
-    div.on('hidden.bs.collapse', function () {
-      showCodeButton.removeClass('btn-collapsing');
-    });
-    div.on('show.bs.collapse', function () {
-      showCodeText.text('Hide');
-      showCodeButton.addClass('btn-expanding');
-    });
-    div.on('shown.bs.collapse', function () {
-      showCodeButton.removeClass('btn-expanding');
-    });
-
-  });
-
-}
-</script>
 <style type="text/css">.hljs-literal {
 color: #990073;
 }
@@ -1707,9 +1630,6 @@ display: none;
 </style>
 
 <!-- code folding -->
-<style type="text/css">
-.code-folding-btn { margin-bottom: 4px; }
-</style>
 
 
 
@@ -1787,14 +1707,6 @@ border-radius: 0px;
 
 <div id="header">
 
-<div class="btn-group pull-right float-right">
-<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
-<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
-<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
-<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
-</ul>
-</div>
-
 
 
 <h1 class="title toc-ignore">Task 2: Modeling Oxygen Saturation of
@@ -1805,15 +1717,12 @@ Offshore California Seawater</h1>
 </div>
 
 
-<pre class="r"><code>knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-library(tidyverse)    #always
-library(AICcmodavg)   #for AIC and BIC comparisons
-library(kableExtra)   #nice tables
-library(equatiomatic) #equations</code></pre>
 <p><br></p>
-<div id="background" class="section level2">
-<h2>Background</h2>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
 <hr />
+<div id="overview" class="section level3">
+<h3>Overview</h3>
 <p>In this task, we create and compare linear regression models for
 predicting the oxygen saturation of CA coastal seawater. These models
 use several physical and chemical parameters from water sample data
@@ -1822,12 +1731,16 @@ provided by the California Cooperative Oceanic Fisheries Investigations
 to select the model with the best fit.</p>
 <p><strong>Source:</strong> CalCOFI data are available for use without
 restriction. Data downloaded from <a href="https://calcofi.org/ccdata.html" class="uri">https://calcofi.org/ccdata.html</a>. Accessed 1/10/2022.</p>
-<p><br></p>
 </div>
-<div id="read-in-data" class="section level2">
-<h2>Read in data</h2>
-<hr />
-<p>First we’ll read in and clean up the data.</p>
+<div id="read-in-data" class="section level3">
+<h3>Read in data</h3>
+<p>First load in the appropriate packages for this analysis.</p>
+<pre class="r"><code>knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)    #always
+library(AICcmodavg)   #for AIC and BIC comparisons
+library(kableExtra)   #nice tables
+library(equatiomatic) #equations</code></pre>
+<p>Then read in and clean up the CalCOFI data.</p>
 <pre class="r"><code>seawater &lt;- read_csv(&quot;data/calcofi_seawater_samples.csv&quot;) %&gt;% 
   #clean up variable names for easier recall
   rename(oxy = o2sat,
@@ -1837,44 +1750,28 @@ restriction. Data downloaded from <a href="https://calcofi.org/ccdata.html" clas
          chlor = chlor_a,
          phos = po4u_m,
          nitrate = no2u_m)</code></pre>
-<p><br></p>
+<p><br><br></p>
+</div>
 </div>
 <div id="linear-regression-models" class="section level2">
 <h2>Linear Regression Models</h2>
 <hr />
-<p><br></p>
 <div id="create-the-models" class="section level3">
 <h3>Create the models</h3>
 <p>Now let’s create two linear regression models. The first will predict
 oxygen saturation (% sat) based on water temperature (<span class="math inline">\(^\circ\)</span>C), salinity (practical salinity
-scale), and phosphate concentration (<span class="math inline">\(\mu
-mol/L\)</span>). The second model will define oxygen saturation as a
-function of these three parameters plus depth (m).</p>
+scale), and phosphate concentration (<font size="1"><span class="math inline">\(\mu mol/L\)</span> </font>). The second model will
+define oxygen saturation as a function of these three parameters plus
+depth (m).</p>
 <pre class="r"><code>### create model 1
 f1 &lt;- oxy ~ temp + sal + phos
 mdl1 &lt;- lm(f1, data = seawater)
 mdl1_tidy &lt;- broom::tidy(mdl1)
-mdl1_tidy</code></pre>
-<pre><code>## # A tibble: 4 × 5
-##   term        estimate std.error statistic  p.value
-##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)  196.       93.9       2.08  3.98e- 2
-## 2 temp          -0.470     0.390    -1.20  2.31e- 1
-## 3 sal           -2.13      2.93     -0.728 4.69e- 1
-## 4 phos         -38.5       2.52    -15.3   2.02e-27</code></pre>
-<pre class="r"><code>### create model 2
+
+### create model 2
 f2 &lt;- oxy ~ temp + sal + phos + depth
 mdl2 &lt;- lm(f2, data = seawater)
-mdl2_tidy &lt;- broom::tidy(mdl2)
-mdl2_tidy</code></pre>
-<pre><code>## # A tibble: 5 × 5
-##   term        estimate std.error statistic  p.value
-##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept) 144.       95.4        1.51  1.34e- 1
-## 2 temp         -0.750     0.405     -1.85  6.72e- 2
-## 3 sal          -0.439     2.99      -0.147 8.83e- 1
-## 4 phos        -37.7       2.50     -15.1   6.06e-27
-## 5 depth        -0.0320    0.0150    -2.13  3.54e- 2</code></pre>
+mdl2_tidy &lt;- broom::tidy(mdl2)</code></pre>
 <p><br></p>
 </div>
 <div id="compare-the-models" class="section level3">
@@ -1898,7 +1795,21 @@ aic_table &lt;- aic %&gt;%
                 html_font = &quot;Cambria&quot;,
                 position = &quot;left&quot;) %&gt;% 
   remove_column(c(1,6,7,9))
-# return table
+
+
+### BIC  ------------------------------------------------------------
+bic &lt;- bictab(list(mdl1, mdl2))
+# make table
+bic_table &lt;- bic %&gt;% 
+  kable(caption = &quot;**Table 2.** BIC values for Models 1 and 2.&quot;) %&gt;% 
+  kable_styling(full_width = FALSE,
+                bootstrap_options = &quot;hover&quot;,
+                html_font = &quot;Cambria&quot;,
+                position = &quot;left&quot;) %&gt;% 
+  remove_column(c(1,6,7,9))
+
+
+# return tables
 aic_table</code></pre>
 <table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
 <caption>
@@ -1960,18 +1871,7 @@ Mod1
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>### BIC  ------------------------------------------------------------
-bic &lt;- bictab(list(mdl1, mdl2))
-# make table
-bic_table &lt;- bic %&gt;% 
-  kable(caption = &quot;**Table 2.** BIC values for Models 1 and 2.&quot;) %&gt;% 
-  kable_styling(full_width = FALSE,
-                bootstrap_options = &quot;hover&quot;,
-                html_font = &quot;Cambria&quot;,
-                position = &quot;left&quot;) %&gt;% 
-  remove_column(c(1,6,7,9))
-# return table
-bic_table</code></pre>
+<pre class="r"><code>bic_table</code></pre>
 <table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
 <caption>
 <strong>Table 2.</strong> BIC values for Models 1 and 2.
@@ -2032,10 +1932,10 @@ Mod1
 </tr>
 </tbody>
 </table>
-<p>As shown in Table 1, Model 1 has an AICc value of 619.03, while model
+<p>As shown in Table 1, Model 1 has an AICc value of 619.03, while Model
 2 has an AICc of 616.6. This difference of 2.42 indicates positive
 evidence that Model 2 better predicts oxygen saturation levels in
-seawater. The BIC values of model 1 and 2, however, are very similar
+seawater. The BIC values of Model 1 and 2, however, are very similar
 (difference of 0.08), suggesting a minimal difference in model efficacy.
 BIC places a larger penalty than AICc on the number of parameters (K)
 used in a model; in other words, BIC rewards parsimony over goodness of
@@ -2102,14 +2002,73 @@ results_sum &lt;- results_df %&gt;%
   summarize(mean_rmse_mdl1 = round(mean(rmse_mdl1),3),
             mean_rmse_mdl2 = round(mean(rmse_mdl2),3),
             sd_rmse_mdl1 = round(sd(rmse_mdl1),3),
-            sd_rmse_mdl2 = round(sd(rmse_mdl2),3))</code></pre>
-<p>The average RMSE across all folds was 4.866 <span class="math inline">\(\pm\)</span> 2.096 and 4.784 <span class="math inline">\(\pm\)</span> 2.181 for Model 1 and Model 2,
-respectively (mean <span class="math inline">\(\pm\)</span> 1 standard
-deviation). With an average RMSE 0.082 smaller, Model 2 appears to be
-slightly better for evaluating the percent oxygen saturation. However,
-due to the weak evidence provided by the BIC and RMSE comparison, there
-may yet be better models for predicting saturated oxygen levels in
-seawater.</p>
+            sd_rmse_mdl2 = round(sd(rmse_mdl2),3))
+
+## can&#39;t remember how to use pivot_longer
+## so just brute-forcing this into a nice table
+results_tidy &lt;- data.frame(&quot;Model&quot; = c(&quot;Model1&quot;, &quot;Model2&quot;),
+                           &quot;mean_rmse&quot; = c(results_sum$mean_rmse_mdl1,
+                                           results_sum$mean_rmse_mdl2),
+                           &quot;sd_rmse&quot; = c(results_sum$sd_rmse_mdl1,
+                                         results_sum$sd_rmse_mdl2)) 
+ 
+
+results_tidy %&gt;% 
+  kable(
+        caption = &quot;**Table 3.** Mean and standard deviation RMSE values.&quot;) %&gt;% 
+  kable_styling(full_width = F,
+                bootstrap_options = &quot;hover&quot;,
+                html_font = &quot;Cambria&quot;,
+                position = &quot;left&quot;)</code></pre>
+<table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
+<caption>
+<strong>Table 3.</strong> Mean and standard deviation RMSE values.
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+Model
+</th>
+<th style="text-align:right;">
+mean_rmse
+</th>
+<th style="text-align:right;">
+sd_rmse
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Model1
+</td>
+<td style="text-align:right;">
+4.866
+</td>
+<td style="text-align:right;">
+2.096
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Model2
+</td>
+<td style="text-align:right;">
+4.784
+</td>
+<td style="text-align:right;">
+2.181
+</td>
+</tr>
+</tbody>
+</table>
+<p>The average RMSE across all folds was 4.866 <font size="1"><span class="math inline">\(\pm\)</span></font> 2.096 and 4.784
+<font size="1"><span class="math inline">\(\pm\)</span></font> 2.181 for
+Model 1 and Model 2, respectively (mean <font size="1"><span class="math inline">\(\pm\)</span></font> 1 standard deviation). With an
+average RMSE 0.082 smaller, Model 2 appears to be slightly better for
+evaluating the percent oxygen saturation. However, due to the weak
+evidence provided by the BIC and RMSE comparison, there may yet be
+better models for predicting saturated oxygen levels in seawater.</p>
 <p><br></p>
 </div>
 <div id="additional-models" class="section level3">
@@ -2124,23 +2083,24 @@ algae growth; when these algae die, oxygen is used in the process of
 decomposition (Watson et al., 2017). Similar to phosphorous, nitrogen is
 also a limiting compound, and nitrate concentrations can have the same
 affect on algal blooms (Voss et al., 2013). In a third model, we explore
-how nitrate concentrations (<span class="math inline">\(\mu
-mol/L\)</span>), in addition to temperature, salinity, and phosphate,
-affect oxygen saturation.</p>
+how nitrate concentrations (<font size="1"><span class="math inline">\(\mu mol/L\)</span> </font>) — in addition to
+temperature, salinity, and phosphate — affect oxygen saturation.</p>
 <p>Chlorophyll-a levels increase during algal blooms, as the
 phytoplankton utilize chlorophyll-a to photosynthesize. As previously
 mentioned, these algal blooms are spurred by increased concentrations of
 phosphates and nitrates and can lead to decreased oxygen saturation. Due
 to the relationship between chlorophyll-a and phosphate/nitrate, the
 addition of chlorophyll-a may lead to over-fitting. We’ll test how this
-addition affects accuracy in a fourth model.</p>
+addition affects accuracy in a fourth model that utilizes temperature,
+salinity, phosphate, nitrate, and chlorophyll-a.</p>
 <p>Finally, our results from the first two models indicate that
-temperature and salinity aren’t very significant indicators of oxygen
+temperature (p-values of 0.231 and 0.067 in Models 1 and 2,
+respectively) and salinity (p-values of 0.469 and 0.883 in Models 1 and
+2, respectively) aren’t very significant indicators of oxygen
 saturation. Let’s create a fifth model that eschews temperature and
 salinity for a more parsimonious model comprised of only phosphate,
 nitrate, and cholorphyll-a.</p>
 <pre class="r"><code>### create three more models!
-
 f3 &lt;- oxy ~ temp + sal + phos + nitrate
 mdl3 &lt;- lm(f3, data = seawater)
 
@@ -2156,17 +2116,29 @@ models.</p>
 aic5 &lt;- aictab(list(mdl1, mdl2, mdl3, mdl4, mdl5)) 
 # make table
 aic_table5 &lt;- aic5 %&gt;% 
-  kable(caption = &quot;**Table 3.** AICc values for models 1 through 5.&quot;) %&gt;% 
+  kable(caption = &quot;**Table 4.** AICc values for Models 1 through 5.&quot;) %&gt;% 
   kable_styling(full_width = FALSE,
                 bootstrap_options = &quot;hover&quot;,
                 html_font = &quot;Cambria&quot;,
                 position = &quot;left&quot;) %&gt;% 
   remove_column(c(1,6,7,9))
-# return table
+
+### BIC --------------------------------------------------------------
+bic5 &lt;- bictab(list(mdl1, mdl2, mdl3, mdl4, mdl5))
+# make table
+bic_table5 &lt;- bic5 %&gt;% 
+  kable(caption = &quot;**Table 5.** BIC values for Models 1 and 2.&quot;) %&gt;% 
+  kable_styling(full_width = FALSE,
+                bootstrap_options = &quot;hover&quot;,
+                html_font = &quot;Cambria&quot;,
+                position = &quot;left&quot;) %&gt;% 
+  remove_column(c(1,6,7,9))
+
+# return tables
 aic_table5</code></pre>
 <table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
 <caption>
-<strong>Table 3.</strong> AICc values for models 1 through 5.
+<strong>Table 4.</strong> AICc values for Models 1 through 5.
 </caption>
 <thead>
 <tr>
@@ -2275,21 +2247,10 @@ Mod1
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>### BIC --------------------------------------------------------------
-bic5 &lt;- bictab(list(mdl1, mdl2, mdl3, mdl4, mdl5))
-# make table
-bic_table5 &lt;- bic5 %&gt;% 
-  kable(caption = &quot;**Table 4.** BIC values for Models 1 and 2.&quot;) %&gt;% 
-  kable_styling(full_width = FALSE,
-                bootstrap_options = &quot;hover&quot;,
-                html_font = &quot;Cambria&quot;,
-                position = &quot;left&quot;) %&gt;% 
-  remove_column(c(1,6,7,9))
-# return table
-bic_table5</code></pre>
+<pre class="r"><code>bic_table5</code></pre>
 <table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
 <caption>
-<strong>Table 4.</strong> BIC values for Models 1 and 2.
+<strong>Table 5.</strong> BIC values for Models 1 and 2.
 </caption>
 <thead>
 <tr>
@@ -2398,12 +2359,13 @@ Mod1
 </tr>
 </tbody>
 </table>
-<p>Table 3 displays how including nitrate and chlorophyll-a as
-parameters in Models 4 and 5 increases the log likelihood and decreases
-the AICc. Although Model 4 has a slightly higher log likelihood than
-Model 5, the AICc is 2.35 less than Model 4 due to fewer parameters. The
-BIC values in Table 5 indicate even greater support for Model 5, which
-is 6.98 less than Model 4.</p>
+<p>Table 4 displays how including nitrate and chlorophyll-a as
+parameters in Models 4 and 5 favorably increases the log likelihood and
+decreases the AICc. Although Model 4 has a slightly higher log
+likelihood than Model 5, the AICc of Model 5 is 2.35 less than Model 4
+due to containing two fewer parameters. The BIC values in Table 5
+indicate even greater support for Model 5, which is 6.98 less than Model
+4.</p>
 <p>Finally, we’ll perform a 10-fold cross validation for Models 3-5 and
 compare average RMSE against Models 1 and 2.</p>
 <pre class="r"><code>### prep for cross validation --------------------------------
@@ -2451,20 +2413,8 @@ for(i in 1:n_folds) {
   results_5mdl_df &lt;- bind_rows(results_5mdl_df, rmse)
 }
 
-#return results
-results_5mdl_df</code></pre>
-<pre><code>##    rmse_mdl1 rmse_mdl2 rmse_mdl3 rmse_mdl4 rmse_mdl5 test_gp
-## 1   7.739208  7.281513  7.423712  7.361629  6.975536       1
-## 2   6.234651  5.995570  6.124605  5.928063  5.735050       2
-## 3   5.236390  4.917112  4.446746  4.074657  4.159768       3
-## 4   2.606347  2.987830  2.815044  6.803087  6.408406       4
-## 5   5.053521  4.790210  5.078587  5.076727  4.893490       5
-## 6   8.468239  9.200820  8.290182  8.401676  8.308844       6
-## 7   2.942182  3.056832  4.046892  3.583579  3.893030       7
-## 8   3.495465  3.792383  3.600468  3.609042  3.647004       8
-## 9   4.318080  3.735665  3.609890  3.497393  3.708688       9
-## 10  2.567084  2.086272  2.376636  2.304596  2.320818      10</code></pre>
-<pre class="r"><code>### Now find the average RMSE based on all 10-folds ----------------
+
+### Now find the average RMSE based on all 10-folds ----------------
 results_5mdl_sum &lt;- results_5mdl_df %&gt;% 
   summarize(mean_rmse_mdl1 = round(mean(rmse_mdl1),3),
             mean_rmse_mdl2 = round(mean(rmse_mdl2),3),
@@ -2476,35 +2426,137 @@ results_5mdl_sum &lt;- results_5mdl_df %&gt;%
             sd_rmse_mdl3 = round(sd(rmse_mdl3),3),
             sd_rmse_mdl4 = round(sd(rmse_mdl4),3),
             sd_rmse_mdl5 = round(sd(rmse_mdl5),3))
-results_5mdl_sum</code></pre>
-<pre><code>##   mean_rmse_mdl1 mean_rmse_mdl2 mean_rmse_mdl3 mean_rmse_mdl4 mean_rmse_mdl5
-## 1          4.866          4.784          4.781          5.064          5.005
-##   sd_rmse_mdl1 sd_rmse_mdl2 sd_rmse_mdl3 sd_rmse_mdl4 sd_rmse_mdl5
-## 1        2.096        2.181        1.951        1.987        1.826</code></pre>
-<pre class="r"><code>#outputs in nice table</code></pre>
-<p>Model 5 has the second highest average RMSE of <code>r</code>. (mean
-plusminus sd). With a difference of only (X) and strong support from BIC
-and AICc scores, Model 5 is the winner!</p>
+
+
+### again working harder not smarter -------------------------------
+
+results_5mdl_tidy &lt;- data.frame(&quot;mean_rmse&quot; = c(results_5mdl_sum$mean_rmse_mdl1, 
+                                                results_5mdl_sum$mean_rmse_mdl2,
+                                                results_5mdl_sum$mean_rmse_mdl3,
+                                                results_5mdl_sum$mean_rmse_mdl4,
+                                                results_5mdl_sum$mean_rmse_mdl5),
+                                &quot;sd_rmse&quot; = c(results_5mdl_sum$sd_rmse_mdl1,
+                                              results_5mdl_sum$sd_rmse_mdl2,
+                                              results_5mdl_sum$sd_rmse_mdl3,
+                                              results_5mdl_sum$sd_rmse_mdl4,
+                                              results_5mdl_sum$sd_rmse_mdl5))
+row.names(results_5mdl_tidy) &lt;-c(&quot;Model1&quot;, &quot;Model2&quot;, &quot;Model3&quot;, &quot;Model4&quot;, &quot;Model5&quot;)
+
+results_5mdl_tidy %&gt;% 
+  kable(caption = &quot;**Table 6.** Mean and standard deviation RMSE values for Models 1-5.&quot;) %&gt;% 
+  kable_styling(full_width = FALSE,
+                bootstrap_options = &quot;hover&quot;,
+                html_font = &quot;Cambria&quot;,
+                position = &quot;left&quot;)</code></pre>
+<table class="table table-hover" style="font-family: Cambria; width: auto !important; ">
+<caption>
+<strong>Table 6.</strong> Mean and standard deviation RMSE values for
+Models 1-5.
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+mean_rmse
+</th>
+<th style="text-align:right;">
+sd_rmse
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Model1
+</td>
+<td style="text-align:right;">
+4.866
+</td>
+<td style="text-align:right;">
+2.096
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Model2
+</td>
+<td style="text-align:right;">
+4.784
+</td>
+<td style="text-align:right;">
+2.181
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Model3
+</td>
+<td style="text-align:right;">
+4.781
+</td>
+<td style="text-align:right;">
+1.951
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Model4
+</td>
+<td style="text-align:right;">
+5.064
+</td>
+<td style="text-align:right;">
+1.987
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Model5
+</td>
+<td style="text-align:right;">
+5.005
+</td>
+<td style="text-align:right;">
+1.826
+</td>
+</tr>
+</tbody>
+</table>
+<p><br><br></p>
 </div>
 </div>
 <div id="model-selection" class="section level2">
 <h2>Model Selection</h2>
-<p><em>insert Model 5 equation</em></p>
-<p>Log likelihood is greatest in Model 4, yet Model 5 has highest AICc (
-) and BIC ( ) values due to it’s simplicity.</p>
-<p>Something about cross-fold.</p>
+<hr />
+<p>Based on the AICc and BIC values (Tables 5 and 6), Model 5 appears to
+be best model for predicting oxygen saturation in California seawater.
+However, Model 5 has the second highest average RMSE of 5.005
+<font size="1"><span class="math inline">\(\pm\)</span></font> 1.826
+(mean <font size="1"><span class="math inline">\(\pm\)</span></font> 1
+standard deviation; Table 6). The difference between Model 5 and the
+lowest mean RMSE score (for Model 3) is only 0.224. Additionally, Model
+5 has the smallest standard deviation of RMSE values. This in addition
+to the AICc and BIC values indicate Model 5 is consistently the best
+model for oxygen saturation.</p>
+<p>Our final model: <span class="math display">\[
+\operatorname{\widehat{oxy}} = 114.59 - 36.4(\operatorname{phos}) +
+16.24(\operatorname{nitrate}) + 1.31(\operatorname{chlor})
+\]</span></p>
+<p><br><br></p>
 </div>
 <div id="sources-cited" class="section level2">
-<h2>Sources cited</h2>
+<h2>Sources Cited</h2>
+<hr />
 <ul>
 <li>Watson AJ, Lenton TM, Mills BJW. Ocean deoxygenation, the global
 phosphorus cycle and the possibility of human-caused large-scale ocean
 anoxia. Philos Trans A Math Phys Eng Sci. 2017 Sep
-13;375(2102):20160318. <a href="doi:%5B10.1098/rsta.2016.0318" class="uri">doi:[10.1098/rsta.2016.0318</a>](<a href="https://doi.org/10.1098%2Frsta.2016.0318" class="uri">https://doi.org/10.1098%2Frsta.2016.0318</a>)</li>
+13;375(2102):20160318.doi:[10.1098/rsta.2016.0318</li>
 <li>Voss M, Bange HW, Dippner JW, Middelburg JJ, Montoya JP, Ward B. The
 marine nitrogen cycle: recent discoveries, uncertainties and the
 potential relevance of climate change. Philos Trans R Soc Lond B Biol
-Sci. 2013 May 27;368(1621):20130121. doi: <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3682741/">10.1098/rstb.2013.0121</a></li>
+Sci. 2013 May 27;368(1621):20130121. <a href="doi:10.1098/rstb.2013.0121" class="uri">doi:10.1098/rstb.2013.0121</a></li>
 </ul>
 </div>
 
@@ -2543,11 +2595,6 @@ $(document).ready(function () {
 </script>
 
 <!-- code folding -->
-<script>
-$(document).ready(function () {
-  window.initializeCodeFolding("show" === "show");
-});
-</script>
 
 <script>
 $(document).ready(function ()  {
